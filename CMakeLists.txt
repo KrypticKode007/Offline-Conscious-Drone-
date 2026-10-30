@@ -34,7 +34,23 @@ add_library(sentience_core SHARED main_hardware_launcher.cpp)
 set_target_properties(sentience_core PROPERTIES
     OUTPUT_NAME "sentience_core"
     PREFIX "lib"
-)
+) 
+
+cmake_minimum_required(VERSION 3.10)
+project(KrypticDroneStabilizer CXX)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Optimization flags for performance-critical execution
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -fPIC")
+
+# Build the shared object library for ctypes interface mapping
+add_library(stabilizer SHARED stabilizer_core.hpp)
+
+# Install location structure
+install(TARGETS stabilizer DESTINATION ${CMAKE_BINARY_DIR}/lib)
+
 
 # Output runtime update metrics upon successful build completion
 message(STATUS "--------------------------------------------------------")
