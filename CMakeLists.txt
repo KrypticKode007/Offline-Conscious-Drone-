@@ -31,7 +31,7 @@ add_executable(kryptic_core_simulator main_hardware_launcher.cpp)
 add_library(sentience_core SHARED main_hardware_launcher.cpp)
 
 # Set custom output configurations to name output artifact as 'libsentience_core.so'
-set_target_properties(sentience_core PROPERTIES
+set_target_properties(sentience_core PROPERTIES)
     OUTPUT_NAME "sentience_core"
     PREFIX "lib"
 ) 
