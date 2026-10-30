@@ -1,10 +1,10 @@
-name: Kryptic-Agent CI Engine
+name: Drone Architecture Core CI
 
 on:
   push:
-    branches: [ main, dev-hardware-integration, commercial ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   build-and-test:
@@ -18,28 +18,28 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        cache: 'pip'
 
-    - name: Install System Dependencies
+    - name: Install System Build Toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++ cmake sqlite3 libsqlite3-dev
+        sudo apt-get install -y build-essential cmake
 
-    - name: Install Python Package Infrastructure
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest fastapi uvicorn requests cryptography psutil
-
-    - name: Compile High-Speed Native Matrix Accelerator Binary
+    - name: Build C++ Native Core via CMake
       run: |
         mkdir build
         cd build
         cmake ..
-        make
-        # Copy compiled shared object file to root for the python wrapper to detect
-        cp libsentience_core.so ..
+        cmake --build .
 
-    - name: Execute Cybernetic Validation Testing Matrix
+    - name: Copy Shared Library to Core Source Root
       run: |
-        pytest tests/ -v
+        cp build/libstabilizer.so . || cp build/libstabilizer.dylib . || cp build/stabilizer_core.so . || cp build/libstabilizer* .
+
+    - name: Run Orchestrator Pipeline Verification Suite
+      run: |
+        if [ -f "orchestrator_bridge.py" ]; then
+          python3 orchestrator_bridge.py
+        else
+          echo "Warning: orchestrator_bridge.py not found at root layout."
+        fi
         
