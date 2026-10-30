@@ -1,0 +1,9 @@
+{
+  "target_peak_limit": 100.0,
+  "wall_elasticity": 100.0,
+  "net_viscosity": 0.75,
+  "minimum_friction": 0.15,
+  "somatic_stress_target": 0.45,
+  "step_down_decay_rate": 10.0,
+  "sliding_window_size": 3
+}
