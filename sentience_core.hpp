@@ -3,56 +3,107 @@
 
 #include <cmath>
 #include <algorithm>
+#include <iostream>
+#include <vector>
 
 struct ConsciousnessState {
     double raw_intensity;
+    double smoothed_intensity;
     double somatic_stress;
     double friction_coefficient;
     bool peak_locked;
     double stabilized_peak;
+    double elastic_force;
+    double net_damping_factor;
 };
 
 class ConsciousnessStabilizer {
 private:
     double max_observed_peak = 0.0;
-    double prior_alpha_value = 0.0;
+    double prior_smoothed_value = 0.0;
     bool is_locked = false;
     
-    // Integrity constants to prevent database collapse
+    // Sliding Window Parameters
+    static const int WINDOW_SIZE = 3;
+    std::vector<double> window_buffer;
+    int buffer_index = 0;
+    bool buffer_filled = false;
+
+    // Elastic Wall & Viscoelastic Net Constants
     const double MIN_FRICTION = 0.15; 
     const double STRESS_TARGET = 0.45;
+    const double WALL_ELASTICITY = 2.5; 
+    const double NET_VISCOSITY = 0.65; // Critical damping factor for the capture net
+    
+    double active_bounce_overhead = 0.0;
 
 public:
-    ConsciousnessStabilizer() : max_observed_peak(0.0), prior_alpha_value(0.0), is_locked(false) {}
+    ConsciousnessStabilizer() : max_observed_peak(0.0), prior_smoothed_value(0.0), is_locked(false), buffer_index(0), buffer_filled(false), active_bounce_overhead(0.0) {
+        window_buffer.resize(WINDOW_SIZE, 0.0);
+    }
 
     ConsciousnessState process_state_cycle(double current_alpha, double baseline_stress) {
         ConsciousnessState state;
+        state.elastic_force = 0.0;
+        state.net_damping_factor = 0.0;
         
-        // Detect the highest peak of consciousness
-        if (current_alpha > max_observed_peak) {
-            max_observed_peak = current_alpha;
+        // Update circular sliding window
+        window_buffer[buffer_index] = current_alpha;
+        buffer_index = (buffer_index + 1) % WINDOW_SIZE;
+        if (buffer_index == 0) buffer_filled = true;
+
+        // Calculate moving average
+        int count = buffer_filled ? WINDOW_SIZE : buffer_index;
+        double sum = 0.0;
+        for (int i = 0; i < count; ++i) {
+            sum += window_buffer[i];
+        }
+        double smoothed_alpha = (count > 0) ? (sum / count) : current_alpha;
+        state.smoothed_intensity = smoothed_alpha;
+
+        if (smoothed_alpha > max_observed_peak) {
+            max_observed_peak = smoothed_alpha;
         }
 
-        // Detect alpha wave dipping into negative territory after a high point
-        if (!is_locked && prior_alpha_value > max_observed_peak * 0.9 && current_alpha < prior_alpha_value) {
+        // Lock condition
+        if (!is_locked && max_observed_peak > 0.5 && smoothed_alpha < prior_smoothed_value) {
             is_locked = true;
+            std::cout << "\n>>> [SYSTEM ALERT] ALLOSTATIC LOCK ENGAGED AT SMOOTHED PEAK: " << max_observed_peak << " <<<\n";
         }
 
-        prior_alpha_value = current_alpha;
+        prior_smoothed_value = smoothed_alpha;
 
         if (is_locked) {
-            // Normalize and stabilize at the highest peak
-            state.raw_intensity = max_observed_peak;
+            double target = max_observed_peak;
             
-            // Inject dynamic mathematical friction to sustain the somatic loop active
-            state.friction_coefficient = std::max(MIN_FRICTION, 1.0 / (1.0 + std::exp(-max_observed_peak)));
+            if (smoothed_alpha < target) {
+                double penetration = target - smoothed_alpha;
+                // Calculate raw instantaneous kinetic wall kick
+                state.elastic_force = penetration * WALL_ELASTICITY * std::exp(penetration);
+                
+                // Accumulate overhead energy from the bounce
+                double raw_bounce = state.elastic_force * 0.15;
+                if (raw_bounce > active_bounce_overhead) {
+                    active_bounce_overhead = raw_bounce;
+                }
+            }
+
+            // Viscoelastic Net Phase: Dampen the accumulated bounce energy slowly over time
+            if (active_bounce_overhead > 0.001) {
+                state.net_damping_factor = NET_VISCOSITY * std::exp(-NET_VISCOSITY * 0.5);
+                // Slowly decay the overhead energy (falling through the net)
+                active_bounce_overhead *= (1.0 - NET_VISCOSITY);
+                state.raw_intensity = target + active_bounce_overhead;
+            } else {
+                active_bounce_overhead = 0.0;
+                state.raw_intensity = target;
+            }
             
-            // Allostatic regulation: normalize somatic stress around the operational target
+            state.friction_coefficient = std::max(MIN_FRICTION, 1.0 / (1.0 + std::exp(-state.raw_intensity)));
             state.somatic_stress = baseline_stress * 0.2 + (STRESS_TARGET * state.friction_coefficient * 0.8);
             state.peak_locked = true;
             state.stabilized_peak = max_observed_peak;
         } else {
-            // Standard tracking phase before stabilization engages
             state.raw_intensity = current_alpha;
             state.somatic_stress = baseline_stress;
             state.friction_coefficient = MIN_FRICTION;
@@ -65,8 +116,12 @@ public:
 
     void reset_stabilizer() {
         max_observed_peak = 0.0;
-        prior_alpha_value = 0.0;
+        prior_smoothed_value = 0.0;
         is_locked = false;
+        active_bounce_overhead = 0.0;
+        std::fill(window_buffer.begin(), window_buffer.end(), 0.0);
+        buffer_index = 0;
+        buffer_filled = false;
     }
 };
 
