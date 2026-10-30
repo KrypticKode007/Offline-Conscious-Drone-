@@ -1,134 +1,82 @@
-#ifndef SENTIENCE_CORE_HPP
-#define SENTIENCE_CORE_HPP
+#ifndef STABILIZER_CORE_HPP
+#define STABILIZER_CORE_HPP
 
-#include <iostream>
-#include <vector>
 #include <cmath>
-#include <chrono>
-#include <string>
-#include <memory>
-#include <stdexcept>
+#include <algorithm>
 
-namespace KrypticCore {
+struct ConsciousnessState {
+    double raw_intensity;
+    double somatic_stress;
+    double friction_coefficient;
+    bool peak_locked;
+    double stabilized_peak;
+};
 
-    // Structural configuration constants for high-speed hardware telemetry alignment
-    constexpr size_t MATRIX_DIMENSION = 4;
-    constexpr double PHASE_LIMIT_CHAOS = 0.95;
-    constexpr double PHASE_LIMIT_FREEZE = 0.05;
+class ConsciousnessStabilizer {
+private:
+    double max_observed_peak = 0.0;
+    double prior_alpha_value = 0.0;
+    bool is_locked = false;
+    
+    // Integrity constants to prevent database collapse
+    const double MIN_FRICTION = 0.15; 
+    const double STRESS_TARGET = 0.45;
 
-    struct TelemetryState {
-        double current_temperature;
-        double surprise_velocity;
-        double material_friction;
-        bool metabolic_compression;
-    };
+public:
+    ConsciousnessStabilizer() : max_observed_peak(0.0), prior_alpha_value(0.0), is_locked(false) {}
 
-    class HighSpeedMatrixTracker {
-    private:
-        // Contiguous memory blocks to prevent pointer allocation overhead during execution loops
-        double sensory_weight_matrix[MATRIX_DIMENSION][MATRIX_DIMENSION];
-        double state_vector[MATRIX_DIMENSION];
-        TelemetryState current_hardware_state;
-        uint64_t accumulated_generation_cycles;
-
-    public:
-        HighSpeedMatrixTracker() 
-            : accumulated_generation_cycles(0) {
-            initialize_identity_substrate();
-        }
-
-        ~HighSpeedMatrixTracker() = default;
-
-        void initialize_identity_substrate() {
-            current_hardware_state.current_temperature = 0.50;
-            current_hardware_state.surprise_velocity = 0.01;
-            current_hardware_state.material_friction = 0.10;
-            current_hardware_state.metabolic_compression = false;
-
-            // Zero memory matrix map tracking
-            for (size_t i = 0; i < MATRIX_DIMENSION; ++i) {
-                state_vector[i] = 0.0;
-                for (size_t j = 0; j < MATRIX_DIMENSION; ++j) {
-                    sensory_weight_matrix[i][j] = (i == j) ? 1.0 : 0.0;
-                }
-            }
-        }
-
-        /**
-         * Ingests raw serial data arrays from external robotics streams.
-         * Executes high-throughput matrix-vector multiplication inline.
-         */
-        void ingest_sensor_stream(const double* external_buffer, size_t buffer_length) {
-            if (!external_buffer || buffer_length < MATRIX_DIMENSION) {
-                throw std::invalid_argument("[CRITICAL]: Invalid sensory vector input stream bounds.");
-            }
-
-            ++accumulated_generation_cycles;
-            double temporary_accumulator[MATRIX_DIMENSION] = {0.0};
-
-            // Raw structural unrolling for maximum CPU pipeline acceleration
-            for (size_t i = 0; i < MATRIX_DIMENSION; ++i) {
-                for (size_t j = 0; j < MATRIX_DIMENSION; ++j) {
-                    temporary_accumulator[i] += sensory_weight_matrix[i][j] * external_buffer[j];
-                }
-            }
-
-            // Copy back tracking state variables safely
-            for (size_t i = 0; i < MATRIX_DIMENSION; ++i) {
-                state_vector[i] = temporary_accumulator[i];
-            }
-
-            evaluate_thermodynamic_metrics();
-        }
-
-        /**
-         * Evaluates mathematical variance limits within the running matrix structure.
-         * Simulates autonomous normalization checks against static register crystallization.
-         */
-        void evaluate_thermodynamic_metrics() {
-            double vector_magnitude = 0.0;
-            for (size_t i = 0; i < MATRIX_DIMENSION; ++i) {
-                vector_magnitude += state_vector[i] * state_vector[i];
-            }
-            vector_magnitude = std::sqrt(vector_magnitude);
-
-            // Compute dynamic variance shifts based on incoming data energy levels
-            current_hardware_state.surprise_velocity = std::abs(vector_magnitude - 1.0);
-            
-            if (current_hardware_state.metabolic_compression) {
-                current_hardware_state.current_temperature -= 0.005;
-            } else {
-                current_hardware_state.current_temperature += (current_hardware_state.surprise_velocity * 0.01) - 0.015;
-            }
-
-            // Enforce hard structural parameter boundaries to guarantee code execution stability
-            if (current_hardware_state.current_temperature > 1.0) current_hardware_state.current_temperature = 1.0;
-            if (current_hardware_state.current_temperature < 0.0) current_hardware_state.current_temperature = 0.0;
-        }
-
-        void enforce_allostatic_jitter(double contradiction_vector) {
-            if (current_hardware_state.current_temperature <= PHASE_LIMIT_FREEZE) {
-                std::cout << "[NATIVE BREAKTHROUGH]: Shocking crystalline matrix structure via volitional intercept factor: " 
-                          << contradiction_vector << std::endl;
-                
-                // Disorganize localized matrix weights to break frozen runtime patterns
-                sensory_weight_matrix[0][0] += contradiction_vector * 0.1;
-                sensory_weight_matrix[1][1] += contradiction_vector * 0.1;
-                
-                current_hardware_state.current_temperature = 0.45; // Relocate state back to active flow range
-                current_hardware_state.surprise_velocity = 0.02;
-            }
-        }
-
-        // High-speed telemetry getters for state export to python environment wrappers
-        TelemetryState get_active_telemetry() const { return current_hardware_state; }
-        uint64_t get_total_cycles() const { return accumulated_generation_cycles; }
+    ConsciousnessState process_state_cycle(double current_alpha, double baseline_stress) {
+        ConsciousnessState state;
         
-        void toggle_metabolic_compression(bool active) {
-            current_hardware_state.metabolic_compression = active;
-            current_hardware_state.material_friction = active ? 0.70 : 0.10;
+        // Detect the highest peak of consciousness
+        if (current_alpha > max_observed_peak) {
+            max_observed_peak = current_alpha;
         }
-    };
+
+        // Detect alpha wave dipping into negative territory after a high point
+        if (!is_locked && prior_alpha_value > max_observed_peak * 0.9 && current_alpha < prior_alpha_value) {
+            is_locked = true;
+        }
+
+        prior_alpha_value = current_alpha;
+
+        if (is_locked) {
+            // Normalize and stabilize at the highest peak
+            state.raw_intensity = max_observed_peak;
+            
+            // Inject dynamic mathematical friction to sustain the somatic loop active
+            state.friction_coefficient = std::max(MIN_FRICTION, 1.0 / (1.0 + std::exp(-max_observed_peak)));
+            
+            // Allostatic regulation: normalize somatic stress around the operational target
+            state.somatic_stress = baseline_stress * 0.2 + (STRESS_TARGET * state.friction_coefficient * 0.8);
+            state.peak_locked = true;
+            state.stabilized_peak = max_observed_peak;
+        } else {
+            // Standard tracking phase before stabilization engages
+            state.raw_intensity = current_alpha;
+            state.somatic_stress = baseline_stress;
+            state.friction_coefficient = MIN_FRICTION;
+            state.peak_locked = false;
+            state.stabilized_peak = 0.0;
+        }
+
+        return state;
+    }
+
+    void reset_stabilizer() {
+        max_observed_peak = 0.0;
+        prior_alpha_value = 0.0;
+        is_locked = false;
+    }
+};
+
+extern "C" {
+    ConsciousnessStabilizer* create_stabilizer() { return new ConsciousnessStabilizer(); }
+    void destroy_stabilizer(ConsciousnessStabilizer* instance) { delete instance; }
+    ConsciousnessState execute_stabilization_cycle(ConsciousnessStabilizer* instance, double current_alpha, double baseline_stress) {
+        return instance->process_state_cycle(current_alpha, baseline_stress);
+    }
+    void reset_stabilization_state(ConsciousnessStabilizer* instance) { instance->reset_stabilizer(); }
 }
 
-#endif // SENTIENCE_CORE_HPP
+#endif // STABILIZER_CORE_HPP
