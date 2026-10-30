@@ -22,24 +22,41 @@ jobs:
     - name: Install System Build Toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake
+        sudo apt-get install -y build-essential cmake sqlite3 libsqlite3-dev
 
     - name: Build C++ Native Core via CMake
       run: |
-        mkdir build
+        mkdir -p build
         cd build
         cmake ..
         cmake --build .
 
     - name: Copy Shared Library to Core Source Root
       run: |
-        cp build/libstabilizer.so . || cp build/libstabilizer.dylib . || cp build/stabilizer_core.so . || cp build/libstabilizer* .
+        if [ -f "build/libstabilizer.so" ]; then
+          cp build/libstabilizer.so .
+        elif [ -f "build/libstabilizer.dylib" ]; then
+          cp build/libstabilizer.dylib .
+        else
+          echo "Compiling directly from source file fallback structure..."
+          g++ -O3 -shared -fPIC -std=c++11 stabilizer_core.hpp -o libstabilizer.so
+        fi
 
-    - name: Run Orchestrator Pipeline Verification Suite
+    - name: Run Core Orchestrator Live Loop Verification
       run: |
         if [ -f "orchestrator_bridge.py" ]; then
           python3 orchestrator_bridge.py
         else
-          echo "Warning: orchestrator_bridge.py not found at root layout."
+          echo "Error: orchestrator_bridge.py core target is missing."
+          exit 1
+        fi
+
+    - name: Execute Database Integrity Diagnostics Test
+      run: |
+        if [ -f "extract_analytics.py" ]; then
+          python3 extract_analytics.py
+        else
+          echo "Error: extract_analytics.py verification utility is missing."
+          exit 1
         fi
         
